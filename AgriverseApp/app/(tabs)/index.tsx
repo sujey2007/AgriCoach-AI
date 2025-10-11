@@ -1,30 +1,32 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Button, Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { LineChart } from 'react-native-chart-kit'; // Both are imported
+import { ActivityIndicator, Alert, Animated, Button, Dimensions, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get("window").width;
 
-// Use localhost for the current browser test. CHANGE THIS to your permanent Render URL for deployment.
-const API_URL = 'https://agriverse-fastapi-1.onrender.com/';
+// Automatically selects the correct API URL based on the platform
+const API_URL = Platform.OS === 'web'
+  ? 'http://localhost:8000' // If the OS is 'web', use the local server
+  : 'https://agriverse-fastapi-1.onrender.com'; // Otherwise (for iOS/Android), use the live Render server
 
 // --- COLOR DEFINITIONS ---
-const PRIMARY_DARK = '#1a1a2e';         
-const SECONDARY_CARD = '#2a2a4a';       
-const ACCENT_COLOR = '#4CAF50';         // Bright Green (Used for success/primary borders)
-const TEXT_COLOR = '#F0F0F0';           // Light text color
-const WARNING_COLOR = '#FFA500';        // Orange for negative impact
-const RUPEE_SYMBOL = '\u20B9';          // Correct Unicode entity for Indian Rupee Symbol (₹)
+const PRIMARY_DARK = '#1a1a2e';
+const SECONDARY_CARD = '#2a2a4a';
+const ACCENT_COLOR = '#4CAF50';       // Bright Green (Used for success/primary borders)
+const TEXT_COLOR = '#F0F0F0';         // Light text color
+const WARNING_COLOR = '#FFA500';      // Orange for negative impact
+const RUPEE_SYMBOL = '\u20B9';        // Correct Unicode entity for Indian Rupee Symbol (₹)
 
 // CROP COLORS (High Contrast)
 const CROP_COLORS = {
-  Tomato: '#FF6347', Onion: '#FFC300', Wheat: '#58D68D', Rice: '#3498DB', Chilli: '#AF7AC5', 
-  Cotton: '#4A607A', Potato: '#E67E22', Maize: '#FFDC00', Mustard: '#D68910', Soybean: '#1F618D', 
-  Coffee: '#7D6608', Sugarcane: '#1ABC9C', 
+  Tomato: '#FF6347', Onion: '#FFC300', Wheat: '#58D68D', Rice: '#3498DB', Chilli: '#AF7AC5',
+  Cotton: '#4A607A', Potato: '#E67E22', Maize: '#FFDC00', Mustard: '#D68910', Soybean: '#1F618D',
+  Coffee: '#7D6608', Sugarcane: '#1ABC9C',
 };
 
 
-// --- Forecast Result Display Component (FINAL CORRECT LOCATION) ---
-const ForecastResultDisplay = ({ forecastData, onClose, styles }) => { 
+// --- Forecast Result Display Component ---
+const ForecastResultDisplay = ({ forecastData, onClose, styles }) => {
     if (!forecastData || !forecastData.recommendations || forecastData.recommendations.length === 0) return null;
     
     const primaryRecommendation = forecastData.recommendations[0];
@@ -62,12 +64,11 @@ const ForecastResultDisplay = ({ forecastData, onClose, styles }) => {
 
 
 // --- PNL Drill-Down Modal Component ---
-const PnlDrillDownModal = ({ isVisible, onClose, pnlData, selectedCrop, styles }) => { 
+const PnlDrillDownModal = ({ isVisible, onClose, pnlData, selectedCrop, styles }) => {
     const handleTapToLearn = (context) => { Alert.alert("AI Insight", context, [{ text: "Got It" }]); };
 
     if (!pnlData) return null;
 
-    // LOGIC: Prepare Data for Line Chart (PNL Factors vs. Impact)
     const pnlChartData = {
         labels: pnlData.reasons.map(r => r.factor.split(' ')[0]),
         datasets: [{
@@ -79,7 +80,7 @@ const PnlDrillDownModal = ({ isVisible, onClose, pnlData, selectedCrop, styles }
     const pnlChartConfig = {
         backgroundColor: PRIMARY_DARK, backgroundGradientFrom: SECONDARY_CARD, backgroundGradientTo: PRIMARY_DARK, decimalPlaces: 0, color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
         propsForDots: { r: "4", strokeWidth: "2", stroke: WARNING_COLOR }, formatYLabel: (y) => (y > 0 ? `+${y}` : y),
-        propsForLabels: { fontSize: 9 }, // Smaller font for the crowded labels
+        propsForLabels: { fontSize: 9 },
     };
 
 
@@ -96,14 +97,13 @@ const PnlDrillDownModal = ({ isVisible, onClose, pnlData, selectedCrop, styles }
                         <Text style={styles.modalMetricBox}>Revenue: {RUPEE_SYMBOL}25,000.00</Text>
                     </View>
 
-                    {/* NEW CHART: LINE CHART for PNL Factors */}
-                    <LineChart 
+                    <LineChart
                         data={pnlChartData}
                         width={screenWidth * 0.8}
                         height={180}
                         chartConfig={pnlChartConfig}
                         style={styles.modalChartStyle}
-                        bezier // Use line chart curve
+                        bezier
                     />
 
                     <Text style={styles.modalScoreText}> Net Impact Score: <Text style={{ color: ACCENT_COLOR }}> {pnlData.net_impact_score} </Text> </Text>
@@ -123,7 +123,7 @@ const PnlDrillDownModal = ({ isVisible, onClose, pnlData, selectedCrop, styles }
                                     <Text style={[styles.modalRowText, { flex: 4 }]}>{item.factor}</Text>
                                     <Text style={[styles.modalRowText, { flex: 2, color: impactColor }]}>{item.impact}</Text>
                                     
-                                    <TouchableOpacity 
+                                    <TouchableOpacity
                                         style={{ flex: 4 }}
                                         onPress={() => handleTapToLearn(item.ai_context)}
                                     >
@@ -146,33 +146,31 @@ const PnlDrillDownModal = ({ isVisible, onClose, pnlData, selectedCrop, styles }
 
 // --- MAIN APP COMPONENT ---
 export default function App() {
-  const [stage, setStage] = useState('crop_selection'); 
+  const [stage, setStage] = useState('crop_selection');
   const [selectedCrop, setSelectedCrop] = useState('');
-  const [availableCrops] = useState(['Tomato', 'Onion', 'Wheat', 'Rice', 'Chilli', 'Cotton', 'Coffee', 'Sugarcane', 'Potato', 'Maize', 'Mustard', 'Soybean']); 
+  const [availableCrops] = useState(['Tomato', 'Onion', 'Wheat', 'Rice', 'Chilli', 'Cotton', 'Coffee', 'Sugarcane', 'Potato', 'Maize', 'Mustard', 'Soybean']);
   
-  const [prices, setPrices] = useState([]); 
+  const [prices, setPrices] = useState([]);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [status, setStatus] = useState('Select a crop to begin.');
   const [loading, setLoading] = useState(false);
 
-  const [demandForecastData, setDemandForecastData] = useState(null); 
-  const [demandSelectedMandi, setDemandSelectedMandi] = useState(null); 
+  const [demandForecastData, setDemandForecastData] = useState(null);
+  const [demandSelectedMandi, setDemandSelectedMandi] = useState(null);
   const MANDI_LIST = ["Lucknow (UP)", "Ludhiana (PB)", "Indore (MP)", "Kolkata (WB)", "Guntur (AP)", "Jaipur (RJ)", "Bengaluru (KA)", "Rajkot (GJ)", "Karnal (HR)", "Pune (MH)", "Chennai (TN)"];
 
 
-  const scaleAnim = useRef(new Animated.Value(1)).current; 
-  const opacityAnim = useRef(new Animated.Value(0)).current; 
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
   
   const [pnlVisible, setPnlVisible] = useState(false);
   const [pnlData, setPnlData] = useState(null);
 
-  // --- Animation Logic (restored) ---
   const animateIn = () => { Animated.timing(opacityAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start(); };
   const handlePressIn = () => { Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start(); };
   const handlePressOut = () => { Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: true }).start(); };
 
-  // --- Fetch PNL Data ---
   const fetchPnlAnalysis = async (cropName) => {
     const mockParams = new URLSearchParams({ crop: cropName, yield: '50', expectedPrice: '35', fertilizer: '5000', pesticide: '500', labour: '5000', other: '1000', }).toString();
     
@@ -184,14 +182,13 @@ export default function App() {
         const data = await response.json();
         setPnlData(data);
         setSelectedCrop(cropName);
-        setPnlVisible(true); 
+        setPnlVisible(true);
     } catch (error) {
         Alert.alert("Error", "Could not fetch P&L analysis data.");
         console.error("PNL Fetch Error:", error);
     }
   };
 
-  // --- Fetch Demand Forecast Logic ---
   const fetchAndDisplayDemandForecast = async (mandiName) => {
     setStatus(`Fetching forecast for ${mandiName}...`);
     setDemandSelectedMandi(mandiName);
@@ -200,21 +197,20 @@ export default function App() {
         const response = await fetch(`${API_URL}/demand-forecast/${mandiName}`);
         if (!response.ok) throw new Error("Failed to fetch forecast.");
         const data = await response.json();
-        setDemandForecastData(data); 
+        setDemandForecastData(data);
         setStatus(`Forecast ready for ${mandiName}.`);
     } catch (error) {
         Alert.alert("Error", "Could not fetch forecast data. Check server.");
         console.error("Forecast Fetch Error:", error);
-        setDemandForecastData(null); // Set to null on error to re-render buttons
+        setDemandForecastData(null);
     }
   };
 
 
-  // --- Functions to Interact with Your Python Backend ---
   const fetchPrices = (cropName) => {
     setLoading(true);
     setStatus(`Fetching prices for ${cropName}...`);
-    opacityAnim.setValue(0); 
+    opacityAnim.setValue(0);
 
     fetch(`${API_URL}/market-prices/${cropName}`)
       .then(response => {
@@ -225,7 +221,7 @@ export default function App() {
         setPrices(data.predictions || []);
         setStage('final_prices');
         setStatus(`Data fetched for ${cropName}!`);
-        animateIn(); 
+        animateIn();
       })
       .catch(error => {
         console.error("Error fetching prices:", error);
@@ -240,7 +236,7 @@ export default function App() {
     setStage('crop_selection');
     setSelectedCrop('');
     setPrices([]);
-    setPnlData(null); 
+    setPnlData(null);
     setStatus('Select a crop to begin.');
   };
   
@@ -250,7 +246,6 @@ export default function App() {
   };
 
 
-  // --- UI Rendering Logic ---
   const renderMarketSection = () => {
     if (loading) { return <ActivityIndicator size="large" color={ACCENT_COLOR} style={appStyles.activityIndicator} />; }
 
@@ -272,17 +267,17 @@ export default function App() {
     }
     
     if (stage === 'final_prices' && prices.length > 0) {
-      const bestMandi = prices.reduce((best, current) => { return current.price > best.price ? current : best; }, { price: -1, mandi: 'N/A' }); 
+      const bestMandi = prices.reduce((best, current) => { return current.price > best.price ? current : best; }, { price: -1, mandi: 'N/A' });
       const chartData = { labels: prices.map(p => p.mandi.split('(')[0].trim()), datasets: [{ data: prices.map(p => p.price), color: (opacity = 1) => CROP_COLORS[selectedCrop] || `rgba(40, 167, 69, ${opacity})`, }] };
       const chartConfig = { backgroundGradientFrom: SECONDARY_CARD, backgroundGradientTo: '#3a3a5a', decimalPlaces: 2, color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, style: { borderRadius: 8 }, propsForDots: { r: "4", strokeWidth: "2", stroke: CROP_COLORS[selectedCrop] || ACCENT_COLOR }, propsForLabels: { fontSize: 10, }, yAxisLabel: RUPEE_SYMBOL, yAxisLabelCount: 5, };
 
       return (
-        <Animated.View style={{ opacity: opacityAnim }}> 
+        <Animated.View style={{ opacity: opacityAnim }}>
             <View style={appStyles.recommendationBox}>
                 <Text style={appStyles.recommendationHeader}>🏆 Best Mandi to Sell:</Text>
                 <Text style={appStyles.recommendationText}>{bestMandi.mandi} at {RUPEE_SYMBOL}{bestMandi.price.toFixed(2)}/kg</Text>
             </View>
-          
+        
             <LineChart data={chartData} width={screenWidth - 50} height={220} chartConfig={chartConfig} bezier style={appStyles.chartStyle} />
 
             <Text style={appStyles.promptPrices}>Prices and Trends for {selectedCrop}:</Text>
@@ -290,7 +285,7 @@ export default function App() {
             {prices.map((price, index) => (
               <View key={index} style={appStyles.priceItemRow}>
                 <Text style={appStyles.cityText}>{price.mandi}</Text>
-                <View style={appStyles.priceInfoContainer}> 
+                <View style={appStyles.priceInfoContainer}>
                     <Text style={[appStyles.priceText, { color: CROP_COLORS[selectedCrop] || ACCENT_COLOR, fontWeight: 'bold' }]}> {RUPEE_SYMBOL}{price.price.toFixed(2)}/kg </Text>
                     <Text style={[appStyles.trendText, { color: price.trend.includes('Up') ? ACCENT_COLOR : price.trend.includes('Down') ? '#FF6347' : TEXT_COLOR }]}> ({price.trend}) </Text>
                 </View>
@@ -305,7 +300,6 @@ export default function App() {
   };
 
 
-  // --- Render Demand Forecast Section ---
   const renderDemandSection = () => {
     return (
         <View style={[appStyles.section, appStyles.demandSectionBorder]}>
@@ -313,21 +307,20 @@ export default function App() {
             
             <Text style={appStyles.prompt}>3. Select your region to plan your next planting cycle:</Text>
             
-            {/* Display Regional Buttons */}
             <View style={appStyles.buttonContainer}>
                 {MANDI_LIST.map(mandi => (
                     <TouchableOpacity
                         key={mandi}
                         onPressIn={handlePressIn}
                         onPressOut={handlePressOut}
-                        onPress={() => fetchAndDisplayDemandForecast(mandi)} 
+                        onPress={() => fetchAndDisplayDemandForecast(mandi)}
                     >
                         <Animated.View
                             style={[
-                                appStyles.cropButton, 
-                                { 
-                                    backgroundColor: demandSelectedMandi === mandi ? ACCENT_COLOR : CROP_COLORS['Rice'], // Highlight selected
-                                    transform: [{ scale: scaleAnim }] 
+                                appStyles.cropButton,
+                                {
+                                    backgroundColor: demandSelectedMandi === mandi ? ACCENT_COLOR : CROP_COLORS['Rice'],
+                                    transform: [{ scale: scaleAnim }]
                                 }
                             ]}
                         >
@@ -337,7 +330,6 @@ export default function App() {
                 ))}
             </View>
 
-            {/* Display Forecast Results */}
             <ForecastResultDisplay forecastData={demandForecastData} onClose={() => setDemandForecastData(null)} styles={appStyles} />
 
         </View>
@@ -345,13 +337,12 @@ export default function App() {
   };
 
 
-  // --- Main Render ---
   return (
     <ScrollView contentContainerStyle={appStyles.scrollContainer} style={appStyles.container}>
         <PnlDrillDownModal isVisible={pnlVisible} onClose={() => setPnlVisible(false)} pnlData={pnlData} selectedCrop={selectedCrop} styles={appStyles} />
 
-        <Text style={appStyles.header}>AGRIVERSE AI</Text> 
-        <Text style={[appStyles.status, { color: ACCENT_COLOR }]}>{status}</Text> 
+        <Text style={appStyles.header}>AGRIVERSE AI</Text>
+        <Text style={[appStyles.status, { color: ACCENT_COLOR }]}>{status}</Text>
         
         {/* 1. Market Prices Section */}
         <View style={[appStyles.section, appStyles.marketSectionBorder]}>
@@ -388,14 +379,14 @@ export default function App() {
             <TextInput
                 style={appStyles.input}
                 placeholder="Ask about loans, subsidies, crop insurance, etc."
-                onChangeText={t => { /* ... */ }} 
+                onChangeText={t => { /* ... */ }}
                 value={question}
                 multiline
-                placeholderTextColor="#999" 
+                placeholderTextColor="#999"
             />
             <TouchableOpacity onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={askAI}>
                 <Animated.View style={[appStyles.aiButtonWrapper, { transform: [{ scale: scaleAnim }] }]}>
-                    <Button title="ASK AI" onPress={askAI} color="transparent" /> 
+                    <Button title="ASK AI" onPress={askAI} color="transparent" />
                 </Animated.View>
             </TouchableOpacity>
             
@@ -410,40 +401,37 @@ export default function App() {
   );
 }
 
-// --- STYLESHEET DEFINITIONS (FINAL, ISOLATED) ---
-
-// Define the main styles for the app layout
+// --- STYLESHEET DEFINITIONS ---
 const appStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: PRIMARY_DARK }, 
+  container: { flex: 1, backgroundColor: PRIMARY_DARK },
   scrollContainer: { padding: 20, paddingTop: 60, paddingBottom: 50 },
   header: { fontSize: 34, fontWeight: "900", textAlign: "center", marginBottom: 8, color: '#00FFFF', textShadowColor: 'rgba(0, 255, 255, 0.7)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10, },
-  status: { textAlign: "center", marginBottom: 30, fontSize: 16, fontStyle: 'italic' }, 
+  status: { textAlign: "center", marginBottom: 30, fontSize: 16, fontStyle: 'italic' },
   
   // Section Card Style
-  section: { 
-    marginBottom: 30, 
-    padding: 20, 
-    backgroundColor: SECONDARY_CARD, 
-    borderRadius: 12, 
+  section: {
+    marginBottom: 30,
+    padding: 20,
+    backgroundColor: SECONDARY_CARD,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#4a4a70', 
-    shadowColor: '#00FFFF', 
+    borderColor: '#4a4a70',
+    shadowColor: '#00FFFF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
-    elevation: 10, 
+    elevation: 10,
   },
-  // Highlight Border for Market Section
   marketSectionBorder: {
       borderColor: ACCENT_COLOR,
       borderWidth: 2,
       shadowColor: ACCENT_COLOR,
       shadowOpacity: 0.5,
   },
-  subHeader: { fontSize: 22, fontWeight: "700", marginBottom: 15, color: TEXT_COLOR }, 
+  subHeader: { fontSize: 22, fontWeight: "700", marginBottom: 15, color: TEXT_COLOR },
   
   // Input and Button Styles
-  input: { borderWidth: 2, borderColor: '#5a5a8a', padding: 12, borderRadius: 8, marginBottom: 15, backgroundColor: PRIMARY_DARK, minHeight: 50, fontSize: 16, color: TEXT_COLOR, }, 
+  input: { borderWidth: 2, borderColor: '#5a5a8a', padding: 12, borderRadius: 8, marginBottom: 15, backgroundColor: PRIMARY_DARK, minHeight: 50, fontSize: 16, color: TEXT_COLOR, },
   aiButtonWrapper: { backgroundColor: '#1E90FF', borderRadius: 8, overflow: 'hidden', marginBottom: 15, },
   
   // PNL Feature Styles
@@ -453,31 +441,31 @@ const appStyles = StyleSheet.create({
   promptPrices: { fontSize: 16, marginBottom: 10, fontWeight: 'bold', color: TEXT_COLOR },
   
   // Demand Forecast Base Styles
-  demandSectionBorder: { borderColor: '#00FFFF', borderWidth: 2, shadowColor: '#00FFFF', shadowOpacity: 0.5, }, 
-  demandPrompt: { fontSize: 16, color: TEXT_COLOR, marginBottom: 15 }, 
+  demandSectionBorder: { borderColor: '#00FFFF', borderWidth: 2, shadowColor: '#00FFFF', shadowOpacity: 0.5, },
+  demandPrompt: { fontSize: 16, color: TEXT_COLOR, marginBottom: 15 },
 
   buttonContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', marginBottom: 20 },
   cropButton: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 25, margin: 4, minWidth: 100, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.8, shadowRadius: 4, elevation: 5, },
-  cropButtonText: { color: PRIMARY_DARK, fontWeight: '800', fontSize: 16 }, 
-  priceList: { marginTop: 10, marginBottom: 20, borderTopWidth: 1, borderTopColor: '#4a4a70' }, 
-  priceItemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#4a4a70' }, 
+  cropButtonText: { color: PRIMARY_DARK, fontWeight: '800', fontSize: 16 },
+  priceList: { marginTop: 10, marginBottom: 20, borderTopWidth: 1, borderTopColor: '#4a4a70' },
+  priceItemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#4a4a70' },
   cityText: { fontSize: 16, color: TEXT_COLOR, fontWeight: '500' },
   priceInfoContainer: { flexDirection: 'row', alignItems: 'center' },
-  priceText: { fontSize: 16, fontWeight: 'bold', marginRight: 5 }, 
-  trendText: { marginLeft: 5, fontSize: 13, fontWeight: '600', textShadowColor: '#000', textShadowRadius: 1 }, 
+  priceText: { fontSize: 16, fontWeight: 'bold', marginRight: 5 },
+  trendText: { marginLeft: 5, fontSize: 13, fontWeight: '600', textShadowColor: '#000', textShadowRadius: 1 },
   recommendationBox: { backgroundColor: '#3a3a5a', padding: 15, borderRadius: 10, borderLeftWidth: 5, borderLeftColor: ACCENT_COLOR, marginBottom: 25, alignItems: 'flex-start', },
   recommendationHeader: { fontWeight: '900', color: ACCENT_COLOR, fontSize: 17, marginBottom: 5, },
   recommendationText: { fontSize: 18, fontWeight: '800', color: TEXT_COLOR, },
   chartStyle: { marginLeft: -15, borderRadius: 12, borderWidth: 1, borderColor: '#4a4a70', paddingRight: 20, paddingLeft: 45, paddingBottom: 0, marginVertical: 10, },
-  answerBox: { marginTop: 15, backgroundColor: "#3a3a5a", borderLeftWidth: 4, borderLeftColor: ACCENT_COLOR, padding: 15, borderRadius: 8, }, 
-  answerHeader: { fontWeight: "bold", marginBottom: 5, color: ACCENT_COLOR }, 
+  answerBox: { marginTop: 15, backgroundColor: "#3a3a5a", borderLeftWidth: 4, borderLeftColor: ACCENT_COLOR, padding: 15, borderRadius: 8, },
+  answerHeader: { fontWeight: "bold", marginBottom: 5, color: ACCENT_COLOR },
   answer: { fontSize: 15, color: TEXT_COLOR },
   noData: { fontSize: 14, color: '#A0A0A0', fontStyle: 'italic', marginTop: 5 },
   
   // Demand Forecast Result Styles
-  forecastResultContainer: { 
-      paddingVertical: 10, 
-      marginTop: 5, 
+  forecastResultContainer: {
+      paddingVertical: 10,
+      marginTop: 5,
       backgroundColor: SECONDARY_CARD,
       borderRadius: 12,
       borderWidth: 1,
@@ -508,11 +496,11 @@ const appStyles = StyleSheet.create({
   forecastSecondaryItem: { paddingVertical: 5, marginHorizontal: 10 },
   forecastSecondaryText: { fontSize: 14, color: TEXT_COLOR },
 
-  // Modal Styling (PNL Modal Styles)
+  // Modal Styling
     modalCenteredView: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: 'rgba(0, 0, 0, 0.8)', },
     modalView: { width: screenWidth * 0.9, maxHeight: screenWidth * 1.5, backgroundColor: SECONDARY_CARD, borderRadius: 20, padding: 25, shadowColor: ACCENT_COLOR, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 20, borderWidth: 2, borderColor: ACCENT_COLOR, },
     modalTitle: { fontSize: 22, fontWeight: 'bold', color: '#00FFFF', marginBottom: 15, textAlign: 'center', },
-    modalMetricRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, padding: 10, backgroundColor: PRIMARY_DARK, borderRadius: 8, }, 
+    modalMetricRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15, padding: 10, backgroundColor: PRIMARY_DARK, borderRadius: 8, },
     modalMetricBox: { fontSize: 16, color: ACCENT_COLOR, fontWeight: 'bold' },
     modalScoreText: { fontSize: 18, color: TEXT_COLOR, fontWeight: '600', marginBottom: 10, },
     modalAdviceText: { fontSize: 16, color: '#A0A0A0', marginBottom: 20, fontStyle: 'italic', },

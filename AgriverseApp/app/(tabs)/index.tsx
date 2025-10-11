@@ -5,7 +5,7 @@ import { LineChart } from 'react-native-chart-kit'; // Both are imported
 const screenWidth = Dimensions.get("window").width;
 
 // Use localhost for the current browser test. CHANGE THIS to your permanent Render URL for deployment.
-const API_URL = 'http://localhost:8000'; 
+const API_URL = 'https://agriverse-fastapi-1.onrender.com';
 
 // --- COLOR DEFINITIONS ---
 const PRIMARY_DARK = '#1a1a2e';         

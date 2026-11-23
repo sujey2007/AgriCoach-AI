@@ -1,0 +1,1 @@
+AgriCoach" is an all-in-one mobile app and also web app for farmers, providing live market prices, AI-powered selling advice, and a complete farm finance tracker. It also features weather forecasts, soil nutrition plans, and an AI assistant to diagnose crop diseases from photos
